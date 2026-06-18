@@ -114,7 +114,7 @@ async function handleEditedBusinessMessage(msg: any) {
 
   const { data: prev } = await supabase
     .from("business_messages")
-    .select("text, from_name, is_outgoing")
+    .select("text, from_name, is_outgoing, sent_at")
     .eq("chat_id", msg.chat.id)
     .eq("message_id", msg.message_id)
     .maybeSingle();
