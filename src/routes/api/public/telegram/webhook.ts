@@ -207,6 +207,30 @@ async function handleDeletedBusinessMessages(payload: any) {
   });
 }
 
+async function handlePrivateMessage(msg: any) {
+  const chatId = msg.chat?.id;
+  const text = msg.text ?? "";
+  if (!chatId || !text.startsWith("/start")) return;
+
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text:
+      "👋 <b>សូមស្វាគមន៍មកកាន់ Secretary Bot!</b>\n\n" +
+      "<b>របៀបប្រើប្រាស់៖</b>\n" +
+      "1️⃣ បើក <b>Telegram → Settings → Telegram Business → Chatbots</b>\n" +
+      "2️⃣ បញ្ចូល <b>@Deleted_Massage_2026Bot</b>\n" +
+      "3️⃣ បើក <b>\"Reply to messages\"</b>\n\n" +
+      "✅ ពេលភ្ជាប់រួច ខ្ញុំនឹង៖\n" +
+      "• ឆ្លើយតបស្វ័យប្រវត្តិពេលអ្នកទៅឆ្ងាយ\n" +
+      "• រក្សាទុកសារអតិថិជនទាំងអស់\n" +
+      "• ជូនដំណឹងពេលសារត្រូវបាន <b>កែ</b> ឬ <b>លុប</b>\n\n" +
+      "💡 <b>បញ្ជា៖</b>\n" +
+      "/start - បង្ហាញរបៀបប្រើប្រាស់នេះ\n\n" +
+      "⚠️ ត្រូវការ <b>Telegram Premium + Business Account</b>",
+    parse_mode: "HTML",
+  });
+}
+
 function escapeHtml(s: string) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
