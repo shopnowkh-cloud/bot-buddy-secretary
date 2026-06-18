@@ -244,6 +244,8 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             await handleEditedBusinessMessage(update.edited_business_message);
           } else if (update.deleted_business_messages) {
             await handleDeletedBusinessMessages(update.deleted_business_messages);
+          } else if (update.message) {
+            await handlePrivateMessage(update.message);
           }
         } catch (err) {
           console.error("Webhook handler error:", err);
