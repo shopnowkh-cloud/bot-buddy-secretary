@@ -422,6 +422,12 @@ async function handlePrivateMessage(msg: any) {
       "💡 <b>បញ្ជា៖</b>\n" +
       "/start - បង្ហាញរបៀបប្រើប្រាស់នេះ",
     parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "⚙️ Enable Bot", url: "tg://settings/edit" }],
+        [{ text: "📋 Copy Name Bot", copy_text: { text: "@Deleted_Massage_2026Bot" } }],
+      ],
+    },
   });
 }
 
