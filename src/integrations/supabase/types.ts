@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bot_settings: {
+        Row: {
+          auto_reply_text: string
+          away_mode: boolean
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          auto_reply_text?: string
+          away_mode?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          auto_reply_text?: string
+          away_mode?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      business_connections: {
+        Row: {
+          can_reply: boolean
+          created_at: string
+          first_name: string | null
+          id: string
+          is_enabled: boolean
+          updated_at: string
+          user_chat_id: number
+          user_id: number
+          username: string | null
+        }
+        Insert: {
+          can_reply?: boolean
+          created_at?: string
+          first_name?: string | null
+          id: string
+          is_enabled?: boolean
+          updated_at?: string
+          user_chat_id: number
+          user_id: number
+          username?: string | null
+        }
+        Update: {
+          can_reply?: boolean
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          user_chat_id?: number
+          user_id?: number
+          username?: string | null
+        }
+        Relationships: []
+      }
+      business_messages: {
+        Row: {
+          business_connection_id: string
+          chat_id: number
+          deleted_at: string | null
+          edited_at: string | null
+          from_name: string | null
+          from_user_id: number | null
+          is_outgoing: boolean
+          message_id: number
+          raw: Json
+          sent_at: string
+          text: string | null
+        }
+        Insert: {
+          business_connection_id: string
+          chat_id: number
+          deleted_at?: string | null
+          edited_at?: string | null
+          from_name?: string | null
+          from_user_id?: number | null
+          is_outgoing?: boolean
+          message_id: number
+          raw: Json
+          sent_at?: string
+          text?: string | null
+        }
+        Update: {
+          business_connection_id?: string
+          chat_id?: number
+          deleted_at?: string | null
+          edited_at?: string | null
+          from_name?: string | null
+          from_user_id?: number | null
+          is_outgoing?: boolean
+          message_id?: number
+          raw?: Json
+          sent_at?: string
+          text?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
