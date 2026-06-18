@@ -57,7 +57,7 @@ async function tgMultipart(method: string, fields: Record<string, string>, file?
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   if (file) {
-    form.append(file.field, new Blob([file.bytes], { type: file.mime }), file.filename);
+    form.append(file.field, new Blob([file.bytes as BlobPart], { type: file.mime }), file.filename);
   }
   const res = await fetch(`${GATEWAY_URL}/${method}`, {
     method: "POST",
@@ -243,44 +243,90 @@ async function handleEditedBusinessMessage(msg: any) {
   });
 }
 
-async function sendOriginalMedia(adminChatId: number, raw: any, header: string) {
-  const caption = header + (raw?.caption ? `\n\n${escapeHtml(raw.caption)}` : "");
-  const base = { chat_id: adminChatId, parse_mode: "HTML" as const };
+const MEDIA_FIELD: Record<MediaKind, string> = {
+  photo: "photo",
+  video: "video",
+  animation: "animation",
+  voice: "voice",
+  audio: "audio",
+  video_note: "video_note",
+  document: "document",
+  sticker: "sticker",
+};
 
-  if (raw?.photo?.length) {
-    const fileId = raw.photo[raw.photo.length - 1].file_id;
-    return tg("sendPhoto", { ...base, photo: fileId, caption });
+const MEDIA_METHOD: Record<MediaKind, string> = {
+  photo: "sendPhoto",
+  video: "sendVideo",
+  animation: "sendAnimation",
+  voice: "sendVoice",
+  audio: "sendAudio",
+  video_note: "sendVideoNote",
+  document: "sendDocument",
+  sticker: "sendSticker",
+};
+
+async function fetchStoredBytes(path: string): Promise<Uint8Array | null> {
+  const { data, error } = await getSupabase().storage.from("telegram-media").download(path);
+  if (error || !data) {
+    console.error("storage download failed:", error);
+    return null;
   }
-  if (raw?.video) {
-    return tg("sendVideo", { ...base, video: raw.video.file_id, caption });
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+async function sendOriginalMedia(
+  adminChatId: number,
+  raw: any,
+  header: string,
+  stored?: { kind: MediaKind | null; path: string | null; mime: string | null; filename: string | null },
+) {
+  const caption = header + (raw?.caption ? `\n\n${escapeHtml(raw.caption)}` : "");
+  const base = { chat_id: String(adminChatId), parse_mode: "HTML" };
+
+  // Prefer stored bytes for any saved media (always-original, never lost)
+  if (stored?.kind && stored.path) {
+    const bytes = await fetchStoredBytes(stored.path);
+    if (bytes) {
+      const method = MEDIA_METHOD[stored.kind];
+      const field = MEDIA_FIELD[stored.kind];
+      const supportsCaption = stored.kind !== "sticker" && stored.kind !== "video_note";
+      const fields: Record<string, string> = { ...base };
+      if (supportsCaption) fields.caption = caption;
+      const res = await tgMultipart(method, fields, {
+        field,
+        bytes,
+        filename: stored.filename ?? `${stored.kind}.bin`,
+        mime: stored.mime ?? "application/octet-stream",
+      });
+      if (!supportsCaption) {
+        await tg("sendMessage", { chat_id: adminChatId, parse_mode: "HTML", text: caption });
+      }
+      return res;
+    }
   }
-  if (raw?.animation) {
-    return tg("sendAnimation", { ...base, animation: raw.animation.file_id, caption });
+
+  // Fallback to file_id (works if Telegram still has it)
+  const media = detectMedia(raw);
+  if (media) {
+    const method = MEDIA_METHOD[media.kind];
+    const field = MEDIA_FIELD[media.kind];
+    const supportsCaption = media.kind !== "sticker" && media.kind !== "video_note";
+    const payload: Record<string, unknown> = { chat_id: adminChatId, parse_mode: "HTML", [field]: media.fileId };
+    if (supportsCaption) payload.caption = caption;
+    const res = await tg(method, payload);
+    if (!supportsCaption) {
+      await tg("sendMessage", { chat_id: adminChatId, parse_mode: "HTML", text: caption });
+    }
+    return res;
   }
-  if (raw?.voice) {
-    return tg("sendVoice", { ...base, voice: raw.voice.file_id, caption });
-  }
-  if (raw?.audio) {
-    return tg("sendAudio", { ...base, audio: raw.audio.file_id, caption });
-  }
-  if (raw?.video_note) {
-    await tg("sendVideoNote", { chat_id: adminChatId, video_note: raw.video_note.file_id });
-    return tg("sendMessage", { ...base, text: caption });
-  }
-  if (raw?.document) {
-    return tg("sendDocument", { ...base, document: raw.document.file_id, caption });
-  }
-  if (raw?.sticker) {
-    await tg("sendSticker", { chat_id: adminChatId, sticker: raw.sticker.file_id });
-    return tg("sendMessage", { ...base, text: caption });
-  }
+
   if (raw?.location) {
     await tg("sendLocation", {
       chat_id: adminChatId,
       latitude: raw.location.latitude,
       longitude: raw.location.longitude,
     });
-    return tg("sendMessage", { ...base, text: caption });
+    return tg("sendMessage", { chat_id: adminChatId, parse_mode: "HTML", text: caption });
   }
   if (raw?.contact) {
     await tg("sendContact", {
@@ -289,11 +335,11 @@ async function sendOriginalMedia(adminChatId: number, raw: any, header: string) 
       first_name: raw.contact.first_name ?? "",
       last_name: raw.contact.last_name ?? "",
     });
-    return tg("sendMessage", { ...base, text: caption });
+    return tg("sendMessage", { chat_id: adminChatId, parse_mode: "HTML", text: caption });
   }
 
   const body = raw?.text ? `\n\n<blockquote>${escapeHtml(raw.text)}</blockquote>` : "";
-  return tg("sendMessage", { ...base, text: header + body });
+  return tg("sendMessage", { chat_id: adminChatId, parse_mode: "HTML", text: header + body });
 }
 
 async function handleDeletedBusinessMessages(payload: any) {
