@@ -154,6 +154,59 @@ async function handleEditedBusinessMessage(msg: any) {
   });
 }
 
+async function sendOriginalMedia(adminChatId: number, raw: any, header: string) {
+  const caption = header + (raw?.caption ? `\n\n${escapeHtml(raw.caption)}` : "");
+  const base = { chat_id: adminChatId, parse_mode: "HTML" as const };
+
+  if (raw?.photo?.length) {
+    const fileId = raw.photo[raw.photo.length - 1].file_id;
+    return tg("sendPhoto", { ...base, photo: fileId, caption });
+  }
+  if (raw?.video) {
+    return tg("sendVideo", { ...base, video: raw.video.file_id, caption });
+  }
+  if (raw?.animation) {
+    return tg("sendAnimation", { ...base, animation: raw.animation.file_id, caption });
+  }
+  if (raw?.voice) {
+    return tg("sendVoice", { ...base, voice: raw.voice.file_id, caption });
+  }
+  if (raw?.audio) {
+    return tg("sendAudio", { ...base, audio: raw.audio.file_id, caption });
+  }
+  if (raw?.video_note) {
+    await tg("sendVideoNote", { chat_id: adminChatId, video_note: raw.video_note.file_id });
+    return tg("sendMessage", { ...base, text: caption });
+  }
+  if (raw?.document) {
+    return tg("sendDocument", { ...base, document: raw.document.file_id, caption });
+  }
+  if (raw?.sticker) {
+    await tg("sendSticker", { chat_id: adminChatId, sticker: raw.sticker.file_id });
+    return tg("sendMessage", { ...base, text: caption });
+  }
+  if (raw?.location) {
+    await tg("sendLocation", {
+      chat_id: adminChatId,
+      latitude: raw.location.latitude,
+      longitude: raw.location.longitude,
+    });
+    return tg("sendMessage", { ...base, text: caption });
+  }
+  if (raw?.contact) {
+    await tg("sendContact", {
+      chat_id: adminChatId,
+      phone_number: raw.contact.phone_number,
+      first_name: raw.contact.first_name ?? "",
+      last_name: raw.contact.last_name ?? "",
+    });
+    return tg("sendMessage", { ...base, text: caption });
+  }
+
+  const body = raw?.text ? `\n\n<blockquote>${escapeHtml(raw.text)}</blockquote>` : "";
+  return tg("sendMessage", { ...base, text: header + body });
+}
+
 async function handleDeletedBusinessMessages(payload: any) {
   const supabase = getSupabase();
   const bcId: string = payload.business_connection_id;
@@ -161,10 +214,9 @@ async function handleDeletedBusinessMessages(payload: any) {
   const ids: number[] = payload.message_ids ?? [];
   if (!ids.length) return;
 
-  // Fetch originals before marking deleted
   const { data: originals } = await supabase
     .from("business_messages")
-    .select("message_id, text, from_name, sent_at")
+    .select("message_id, text, from_name, sent_at, raw")
     .eq("chat_id", chatId)
     .in("message_id", ids);
 
@@ -181,21 +233,33 @@ async function handleDeletedBusinessMessages(payload: any) {
     .maybeSingle();
   if (!conn?.user_chat_id) return;
 
+  await tg("sendMessage", {
+    chat_id: conn.user_chat_id,
+    text: `🗑️ <b>សារត្រូវបានលុប (${ids.length})</b>`,
+    parse_mode: "HTML",
+  });
+
   const byId = new Map((originals ?? []).map((o) => [Number(o.message_id), o]));
-  const lines = ids.map((id) => {
+  for (const id of ids) {
     const o = byId.get(Number(id));
-    if (!o) return `• [#${id}] (មិនមានកំណត់ត្រាដើម)`;
+    if (!o) {
+      await tg("sendMessage", {
+        chat_id: conn.user_chat_id,
+        text: `• [#${id}] (មិនមានកំណត់ត្រាដើម)`,
+        parse_mode: "HTML",
+      });
+      continue;
+    }
     const sentAt = o.sent_at
       ? new Date(o.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short" })
       : "មិនស្គាល់ពេលវេលា";
-    return `• <b>${escapeHtml(o.from_name ?? "Unknown")}</b> — 🕒 ${sentAt}\n<blockquote>${escapeHtml(o.text ?? "")}</blockquote>`;
-  });
-
-  await tg("sendMessage", {
-    chat_id: conn.user_chat_id,
-    text: `🗑️ <b>សារត្រូវបានលុប (${ids.length})</b>\n\n${lines.join("\n\n")}`,
-    parse_mode: "HTML",
-  });
+    const header = `🗑️ ពី៖ <b>${escapeHtml(o.from_name ?? "Unknown")}</b>\n🕒 ${sentAt}`;
+    try {
+      await sendOriginalMedia(conn.user_chat_id, o.raw, header);
+    } catch (err) {
+      console.error("sendOriginalMedia failed:", err);
+    }
+  }
 }
 
 async function handlePrivateMessage(msg: any) {
