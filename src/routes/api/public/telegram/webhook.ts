@@ -351,7 +351,7 @@ async function handleDeletedBusinessMessages(payload: any) {
 
   const { data: originals } = await supabase
     .from("business_messages")
-    .select("message_id, text, from_name, sent_at, raw")
+    .select("message_id, text, from_name, sent_at, raw, media_kind, media_path, media_mime, media_filename")
     .eq("chat_id", chatId)
     .in("message_id", ids);
 
@@ -390,7 +390,12 @@ async function handleDeletedBusinessMessages(payload: any) {
       : "មិនស្គាល់ពេលវេលា";
     const header = `🗑️ ពី៖ <b>${escapeHtml(o.from_name ?? "Unknown")}</b>\n🕒 ${sentAt}`;
     try {
-      await sendOriginalMedia(conn.user_chat_id, o.raw, header);
+      await sendOriginalMedia(conn.user_chat_id, o.raw, header, {
+        kind: (o.media_kind as MediaKind | null) ?? null,
+        path: o.media_path ?? null,
+        mime: o.media_mime ?? null,
+        filename: o.media_filename ?? null,
+      });
     } catch (err) {
       console.error("sendOriginalMedia failed:", err);
     }
