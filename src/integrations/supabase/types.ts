@@ -80,6 +80,10 @@ export type Database = {
           from_name: string | null
           from_user_id: number | null
           is_outgoing: boolean
+          media_filename: string | null
+          media_kind: string | null
+          media_mime: string | null
+          media_path: string | null
           message_id: number
           raw: Json
           sent_at: string
@@ -93,6 +97,10 @@ export type Database = {
           from_name?: string | null
           from_user_id?: number | null
           is_outgoing?: boolean
+          media_filename?: string | null
+          media_kind?: string | null
+          media_mime?: string | null
+          media_path?: string | null
           message_id: number
           raw: Json
           sent_at?: string
@@ -106,6 +114,10 @@ export type Database = {
           from_name?: string | null
           from_user_id?: number | null
           is_outgoing?: boolean
+          media_filename?: string | null
+          media_kind?: string | null
+          media_mime?: string | null
+          media_path?: string | null
           message_id?: number
           raw?: Json
           sent_at?: string
