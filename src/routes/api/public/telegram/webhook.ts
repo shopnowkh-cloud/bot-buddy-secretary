@@ -84,7 +84,6 @@ async function handleBusinessMessage(msg: any) {
   const supabase = getSupabase();
   const bcId: string = msg.business_connection_id;
 
-  // Look up the owner of this business connection
   const { data: conn } = await supabase
     .from("business_connections")
     .select("user_id, user_chat_id")
@@ -105,23 +104,8 @@ async function handleBusinessMessage(msg: any) {
     raw: msg,
     sent_at: new Date(msg.date * 1000).toISOString(),
   });
-
-  // Auto-reply only to incoming messages (from customers, not the owner)
-  if (isOutgoing) return;
-
-  const { data: settings } = await supabase
-    .from("bot_settings")
-    .select("away_mode, auto_reply_text")
-    .eq("id", 1)
-    .maybeSingle();
-
-  if (!settings?.away_mode) return;
-
-  await tg("sendMessage", {
-    business_connection_id: bcId,
-    chat_id: msg.chat.id,
-    text: settings.auto_reply_text,
-  });
+  // No auto-reply. Bot stays silent in personal chats; admin notifications
+  // are sent only for edits and deletions (see handlers below).
 }
 
 async function handleEditedBusinessMessage(msg: any) {
