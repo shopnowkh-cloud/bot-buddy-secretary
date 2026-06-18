@@ -143,9 +143,13 @@ async function handleEditedBusinessMessage(msg: any) {
 
   const who = prev?.from_name ?? formatName(msg.from);
   const before = prev?.text ?? "(មិនមានកំណត់ត្រា)";
+  const sentAt = prev?.sent_at
+    ? new Date(prev.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short" })
+    : "មិនស្គាល់ពេលវេលា";
+
   await tg("sendMessage", {
     chat_id: conn.user_chat_id,
-    text: `✏️ <b>សារត្រូវបានកែ</b>\nពី៖ <b>${escapeHtml(who)}</b>\n\n<b>មុន៖</b>\n<blockquote>${escapeHtml(before)}</blockquote>\n<b>ក្រោយ៖</b>\n<blockquote>${escapeHtml(newText)}</blockquote>`,
+    text: `✏️ <b>សារត្រូវបានកែ</b>\nពី៖ <b>${escapeHtml(who)}</b>\n🕒 ${sentAt}\n\n<b>មុន៖</b>\n<blockquote>${escapeHtml(before)}</blockquote>\n<b>ក្រោយ៖</b>\n<blockquote>${escapeHtml(newText)}</blockquote>`,
     parse_mode: "HTML",
   });
 }
@@ -181,12 +185,15 @@ async function handleDeletedBusinessMessages(payload: any) {
   const lines = ids.map((id) => {
     const o = byId.get(Number(id));
     if (!o) return `• [#${id}] (មិនមានកំណត់ត្រាដើម)`;
-    return `• <b>${escapeHtml(o.from_name ?? "Unknown")}</b>:\n<blockquote>${escapeHtml(o.text ?? "")}</blockquote>`;
+    const sentAt = o.sent_at
+      ? new Date(o.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short" })
+      : "មិនស្គាល់ពេលវេលា";
+    return `• <b>${escapeHtml(o.from_name ?? "Unknown")}</b> — 🕒 ${sentAt}\n<blockquote>${escapeHtml(o.text ?? "")}</blockquote>`;
   });
 
   await tg("sendMessage", {
     chat_id: conn.user_chat_id,
-    text: `🗑️ <b>សារត្រូវបានលុប (${ids.length})</b>\n\n${lines.join("\n")}`,
+    text: `🗑️ <b>សារត្រូវបានលុប (${ids.length})</b>\n\n${lines.join("\n\n")}`,
     parse_mode: "HTML",
   });
 }
@@ -209,8 +216,7 @@ async function handlePrivateMessage(msg: any) {
       "• រក្សាទុកសារអតិថិជនទាំងអស់\n" +
       "• ជូនដំណឹងពេលសារត្រូវបាន <b>កែ</b> ឬ <b>លុប</b>\n\n" +
       "💡 <b>បញ្ជា៖</b>\n" +
-      "/start - បង្ហាញរបៀបប្រើប្រាស់នេះ\n\n" +
-      "⚠️ ត្រូវការ <b>Telegram Premium + Business Account</b>",
+      "/start - បង្ហាញរបៀបប្រើប្រាស់នេះ",
     parse_mode: "HTML",
   });
 }
