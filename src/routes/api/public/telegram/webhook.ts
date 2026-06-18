@@ -48,6 +48,83 @@ async function tg(method: string, payload: Record<string, unknown>) {
   return data;
 }
 
+async function tgMultipart(method: string, fields: Record<string, string>, file?: { field: string; bytes: Uint8Array; filename: string; mime: string }) {
+  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
+  const TELEGRAM_API_KEY = process.env.TELEGRAM_API_KEY;
+  if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) {
+    throw new Error("Missing LOVABLE_API_KEY or TELEGRAM_API_KEY");
+  }
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  if (file) {
+    form.append(file.field, new Blob([file.bytes], { type: file.mime }), file.filename);
+  }
+  const res = await fetch(`${GATEWAY_URL}/${method}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": TELEGRAM_API_KEY,
+    },
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) console.error(`Telegram ${method} (multipart) failed [${res.status}]:`, data);
+  return data;
+}
+
+async function tgDownloadFile(fileId: string): Promise<Uint8Array | null> {
+  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
+  const TELEGRAM_API_KEY = process.env.TELEGRAM_API_KEY;
+  if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) return null;
+  const info = await tg("getFile", { file_id: fileId });
+  const filePath = info?.result?.file_path;
+  if (!filePath) return null;
+  const res = await fetch(`${GATEWAY_URL}/file/${filePath}`, {
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "X-Connection-Api-Key": TELEGRAM_API_KEY },
+  });
+  if (!res.ok) {
+    console.error(`Download file failed [${res.status}]`);
+    return null;
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+type MediaKind = "photo" | "video" | "animation" | "voice" | "audio" | "video_note" | "document" | "sticker";
+type MediaInfo = { kind: MediaKind; fileId: string; mime: string; filename: string };
+
+function detectMedia(msg: any): MediaInfo | null {
+  if (msg?.photo?.length) {
+    const p = msg.photo[msg.photo.length - 1];
+    return { kind: "photo", fileId: p.file_id, mime: "image/jpeg", filename: "photo.jpg" };
+  }
+  if (msg?.video) return { kind: "video", fileId: msg.video.file_id, mime: msg.video.mime_type ?? "video/mp4", filename: msg.video.file_name ?? "video.mp4" };
+  if (msg?.animation) return { kind: "animation", fileId: msg.animation.file_id, mime: msg.animation.mime_type ?? "video/mp4", filename: msg.animation.file_name ?? "animation.mp4" };
+  if (msg?.voice) return { kind: "voice", fileId: msg.voice.file_id, mime: msg.voice.mime_type ?? "audio/ogg", filename: "voice.ogg" };
+  if (msg?.audio) return { kind: "audio", fileId: msg.audio.file_id, mime: msg.audio.mime_type ?? "audio/mpeg", filename: msg.audio.file_name ?? "audio.mp3" };
+  if (msg?.video_note) return { kind: "video_note", fileId: msg.video_note.file_id, mime: "video/mp4", filename: "video_note.mp4" };
+  if (msg?.document) return { kind: "document", fileId: msg.document.file_id, mime: msg.document.mime_type ?? "application/octet-stream", filename: msg.document.file_name ?? "file.bin" };
+  if (msg?.sticker) {
+    const ext = msg.sticker.is_video ? "webm" : msg.sticker.is_animated ? "tgs" : "webp";
+    const mime = msg.sticker.is_video ? "video/webm" : msg.sticker.is_animated ? "application/x-tgsticker" : "image/webp";
+    return { kind: "sticker", fileId: msg.sticker.file_id, mime, filename: `sticker.${ext}` };
+  }
+  return null;
+}
+
+async function storeMedia(chatId: number, messageId: number, media: MediaInfo) {
+  const bytes = await tgDownloadFile(media.fileId);
+  if (!bytes) return null;
+  const path = `${chatId}/${messageId}-${Date.now()}-${media.filename}`;
+  const { error } = await getSupabase().storage
+    .from("telegram-media")
+    .upload(path, bytes, { contentType: media.mime, upsert: true });
+  if (error) {
+    console.error("storage upload failed:", error);
+    return null;
+  }
+  return path;
+}
+
 function formatName(u: { first_name?: string; last_name?: string; username?: string } | undefined) {
   if (!u) return "Unknown";
   const name = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
@@ -93,6 +170,16 @@ async function handleBusinessMessage(msg: any) {
   const isOutgoing = conn?.user_id ? Number(msg.from?.id) === Number(conn.user_id) : false;
   const text = extractText(msg);
 
+  const media = detectMedia(msg);
+  let mediaPath: string | null = null;
+  if (media) {
+    try {
+      mediaPath = await storeMedia(msg.chat.id, msg.message_id, media);
+    } catch (err) {
+      console.error("storeMedia error:", err);
+    }
+  }
+
   await supabase.from("business_messages").upsert({
     business_connection_id: bcId,
     chat_id: msg.chat.id,
@@ -103,9 +190,11 @@ async function handleBusinessMessage(msg: any) {
     text,
     raw: msg,
     sent_at: new Date(msg.date * 1000).toISOString(),
+    media_kind: media?.kind ?? null,
+    media_path: mediaPath,
+    media_mime: media?.mime ?? null,
+    media_filename: media?.filename ?? null,
   });
-  // No auto-reply. Bot stays silent in personal chats; admin notifications
-  // are sent only for edits and deletions (see handlers below).
 }
 
 async function handleEditedBusinessMessage(msg: any) {
