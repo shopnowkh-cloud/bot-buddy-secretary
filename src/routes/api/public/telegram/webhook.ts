@@ -395,11 +395,6 @@ async function handleDeletedBusinessMessages(payload: any) {
   if (!conn?.user_chat_id) return;
 
   const notifyIds = [...freshIds, ...unknownIds];
-  await tg("sendMessage", {
-    chat_id: conn.user_chat_id,
-    text: `🗑️ <b>សារត្រូវបានលុប (${notifyIds.length})</b>`,
-    parse_mode: "HTML",
-  });
 
   const byId = new Map((originals ?? []).map((o) => [Number(o.message_id), o]));
   for (const id of notifyIds) {
