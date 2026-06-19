@@ -365,15 +365,27 @@ async function handleDeletedBusinessMessages(payload: any) {
 
   const { data: originals } = await supabase
     .from("business_messages")
-    .select("message_id, text, from_name, sent_at, raw, media_kind, media_path, media_mime, media_filename")
+    .select("message_id, text, from_name, sent_at, raw, media_kind, media_path, media_mime, media_filename, deleted_at")
     .eq("chat_id", chatId)
     .in("message_id", ids);
+
+  // Dedupe: only process messages that have not already been marked deleted
+  const freshIds = (originals ?? [])
+    .filter((o) => !o.deleted_at)
+    .map((o) => Number(o.message_id));
+
+  // Also include unknown ids (no original record) — notify once via insert-on-conflict guard
+  const knownIds = new Set((originals ?? []).map((o) => Number(o.message_id)));
+  const unknownIds = ids.filter((id) => !knownIds.has(Number(id)));
+
+  if (!freshIds.length && !unknownIds.length) return;
 
   await supabase
     .from("business_messages")
     .update({ deleted_at: new Date().toISOString() })
     .eq("chat_id", chatId)
-    .in("message_id", ids);
+    .in("message_id", freshIds.length ? freshIds : [-1])
+    .is("deleted_at", null);
 
   const { data: conn } = await supabase
     .from("business_connections")
@@ -382,14 +394,15 @@ async function handleDeletedBusinessMessages(payload: any) {
     .maybeSingle();
   if (!conn?.user_chat_id) return;
 
+  const notifyIds = [...freshIds, ...unknownIds];
   await tg("sendMessage", {
     chat_id: conn.user_chat_id,
-    text: `🗑️ <b>សារត្រូវបានលុប (${ids.length})</b>`,
+    text: `🗑️ <b>សារត្រូវបានលុប (${notifyIds.length})</b>`,
     parse_mode: "HTML",
   });
 
   const byId = new Map((originals ?? []).map((o) => [Number(o.message_id), o]));
-  for (const id of ids) {
+  for (const id of notifyIds) {
     const o = byId.get(Number(id));
     if (!o) {
       await tg("sendMessage", {
