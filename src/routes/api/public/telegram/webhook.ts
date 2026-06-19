@@ -434,20 +434,17 @@ async function handlePrivateMessage(msg: any) {
   const text = msg.text ?? "";
   if (!chatId || !text.startsWith("/start")) return;
 
+  const displayName = msg.from?.last_name || msg.from?.first_name || "";
+
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      "👋 <b>សូមស្វាគមន៍មកកាន់ Secretary Bot!</b>\n\n" +
-      "<b>របៀបប្រើប្រាស់៖</b>\n" +
-      "1️⃣ បើក <b>Telegram → Settings → Telegram Business → Chatbots</b>\n" +
-      "2️⃣ បញ្ចូល <b>@Deleted_Massage_2026Bot</b>\n" +
-      "3️⃣ បើក <b>\"Reply to messages\"</b>\n\n" +
-      "✅ ពេលភ្ជាប់រួច ខ្ញុំនឹង៖\n" +
-      "• ឆ្លើយតបស្វ័យប្រវត្តិពេលអ្នកទៅឆ្ងាយ\n" +
-      "• រក្សាទុកសារអតិថិជនទាំងអស់\n" +
-      "• ជូនដំណឹងពេលសារត្រូវបាន <b>កែ</b> ឬ <b>លុប</b>\n\n" +
-      "💡 <b>បញ្ជា៖</b>\n" +
-      "/start - បង្ហាញរបៀបប្រើប្រាស់នេះ",
+      `👋 <b>សូមស្វាគមន៍</b>${displayName ? " " + escapeHtml(displayName) : ""}\n\n` +
+      `<b>របៀបប្រើ៖</b>\n\n` +
+      `1️⃣ ចូលទៅ <b>Profile → Edit → Chat Automation</b>\n\n` +
+      `2️⃣ បញ្ចូល <b>@Deleted_Massage_2026Bot → ចុច Add → រួចចុច ✓</b>\n\n` +
+      `👉 <i>បូតនេះអាចជួយអ្នកក្នុងការជជែក</i>\n` +
+      `<i>ជូនដំណឹងភ្លាមៗពេលដៃគូរបស់អ្នកកែសម្រួល ឬលុបសារ។</i>`,
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
