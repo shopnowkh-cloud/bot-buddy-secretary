@@ -207,7 +207,7 @@ async function handleEditedBusinessMessage(msg: any) {
 
   const { data: prev } = await supabase
     .from("business_messages")
-    .select("text, from_name, is_outgoing, sent_at")
+    .select("text, from_name, is_outgoing, sent_at, edited_at")
     .eq("chat_id", msg.chat.id)
     .eq("message_id", msg.message_id)
     .maybeSingle();
@@ -215,9 +215,10 @@ async function handleEditedBusinessMessage(msg: any) {
   const previousText = prev?.text ?? null;
   const newText = extractText(msg);
   const hasNewTextOrCaption = typeof msg?.text === "string" || typeof msg?.caption === "string";
-  const shouldNotify = previousText === null
+  const editTimestamp = new Date((msg.edit_date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
+  const shouldNotify = prev?.edited_at !== editTimestamp && (previousText === null
     ? hasNewTextOrCaption
-    : previousText !== newText && (!isGeneratedNonTextPlaceholder(previousText) || hasNewTextOrCaption);
+    : previousText !== newText && (!isGeneratedNonTextPlaceholder(previousText) || hasNewTextOrCaption));
 
   await supabase.from("business_messages").upsert({
     business_connection_id: bcId,
@@ -229,7 +230,7 @@ async function handleEditedBusinessMessage(msg: any) {
     text: newText,
     raw: msg,
     sent_at: new Date(msg.date * 1000).toISOString(),
-    edited_at: new Date().toISOString(),
+    edited_at: editTimestamp,
   });
 
   if (!shouldNotify) return;
