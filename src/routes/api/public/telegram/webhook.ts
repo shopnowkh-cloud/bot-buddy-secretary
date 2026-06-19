@@ -216,9 +216,11 @@ async function handleEditedBusinessMessage(msg: any) {
   const newText = extractText(msg);
   const hasNewTextOrCaption = typeof msg?.text === "string" || typeof msg?.caption === "string";
   const editTimestamp = new Date((msg.edit_date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
-  const shouldNotify = prev?.edited_at !== editTimestamp && (previousText === null
-    ? hasNewTextOrCaption
-    : previousText !== newText && (!isGeneratedNonTextPlaceholder(previousText) || hasNewTextOrCaption));
+  const shouldNotify =
+    prev?.edited_at !== editTimestamp &&
+    (previousText === null
+      ? hasNewTextOrCaption
+      : previousText !== newText && (!isGeneratedNonTextPlaceholder(previousText) || hasNewTextOrCaption));
 
   await supabase.from("business_messages").upsert({
     business_connection_id: bcId,
