@@ -135,6 +135,10 @@ function extractText(msg: any): string {
   return msg?.text ?? msg?.caption ?? (msg?.photo ? "[photo]" : msg?.video ? "[video]" : msg?.voice ? "[voice]" : msg?.document ? "[document]" : msg?.sticker ? "[sticker]" : "[non-text message]");
 }
 
+function isGeneratedNonTextPlaceholder(text: string | null | undefined) {
+  return !text || /^\[(photo|video|voice|audio|document|sticker|non-text message)\]$/.test(text);
+}
+
 async function handleBusinessConnection(bc: any) {
   const supabase = getSupabase();
   await supabase.from("business_connections").upsert({
@@ -203,12 +207,20 @@ async function handleEditedBusinessMessage(msg: any) {
 
   const { data: prev } = await supabase
     .from("business_messages")
-    .select("text, from_name, is_outgoing, sent_at")
+    .select("text, from_name, is_outgoing, sent_at, edited_at")
     .eq("chat_id", msg.chat.id)
     .eq("message_id", msg.message_id)
     .maybeSingle();
 
+  const previousText = prev?.text ?? null;
   const newText = extractText(msg);
+  const hasNewTextOrCaption = typeof msg?.text === "string" || typeof msg?.caption === "string";
+  const editTimestamp = new Date((msg.edit_date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
+  const shouldNotify =
+    prev?.edited_at !== editTimestamp &&
+    (previousText === null
+      ? hasNewTextOrCaption
+      : previousText !== newText && (!isGeneratedNonTextPlaceholder(previousText) || hasNewTextOrCaption));
 
   await supabase.from("business_messages").upsert({
     business_connection_id: bcId,
@@ -220,8 +232,10 @@ async function handleEditedBusinessMessage(msg: any) {
     text: newText,
     raw: msg,
     sent_at: new Date(msg.date * 1000).toISOString(),
-    edited_at: new Date().toISOString(),
+    edited_at: editTimestamp,
   });
+
+  if (!shouldNotify) return;
 
   const { data: conn } = await supabase
     .from("business_connections")
@@ -231,7 +245,7 @@ async function handleEditedBusinessMessage(msg: any) {
   if (!conn?.user_chat_id) return;
 
   const who = prev?.from_name ?? formatName(msg.from);
-  const before = prev?.text ?? "(មិនមានកំណត់ត្រា)";
+  const before = previousText ?? "(មិនមានកំណត់ត្រា)";
   const sentAt = prev?.sent_at
     ? new Date(prev.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short" })
     : "មិនស្គាល់ពេលវេលា";
