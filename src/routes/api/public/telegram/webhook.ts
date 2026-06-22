@@ -431,15 +431,21 @@ async function handlePrivateMessage(msg: any) {
 
   const displayName = msg.from?.last_name || msg.from?.first_name || "";
 
-  await tg("sendMessage", {
+  const caption =
+    `👋 <b>សូមស្វាគមន៍</b>${displayName ? " " + escapeHtml(displayName) : ""}\n\n` +
+    `<b>របៀបប្រើ៖</b>\n\n` +
+    `1️⃣ ចូលទៅ <b>Profile → Edit → Chat Automation</b>\n\n` +
+    `2️⃣ បញ្ចូល <b>@Deleted_Massage_2026Bot → ចុច Add → រួចចុច ✓</b>\n\n` +
+    `👉 <i>បូតនេះអាចជួយអ្នកក្នុងការជជែក</i>\n` +
+    `<i>ជូនដំណឹងភ្លាមៗពេលដៃគូរបស់អ្នកកែសម្រួល ឬលុបសារ។</i>`;
+
+  const TUTORIAL_PHOTO_URL =
+    "https://bot-buddy-secretary.lovable.app/__l5e/assets-v1/47474fd3-80fb-4df5-8dbf-b5060e157be7/tutorial-chat-automation.jpg";
+
+  await tg("sendPhoto", {
     chat_id: chatId,
-    text:
-      `👋 <b>សូមស្វាគមន៍</b>${displayName ? " " + escapeHtml(displayName) : ""}\n\n` +
-      `<b>របៀបប្រើ៖</b>\n\n` +
-      `1️⃣ ចូលទៅ <b>Profile → Edit → Chat Automation</b>\n\n` +
-      `2️⃣ បញ្ចូល <b>@Deleted_Massage_2026Bot → ចុច Add → រួចចុច ✓</b>\n\n` +
-      `👉 <i>បូតនេះអាចជួយអ្នកក្នុងការជជែក</i>\n` +
-      `<i>ជូនដំណឹងភ្លាមៗពេលដៃគូរបស់អ្នកកែសម្រួល ឬលុបសារ។</i>`,
+    photo: TUTORIAL_PHOTO_URL,
+    caption,
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
