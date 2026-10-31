@@ -263,7 +263,7 @@ async function handleEditedBusinessMessage(msg: any) {
   const who = prev?.from_name ?? formatName(msg.from);
   const before = previousText ?? "(មិនមានកំណត់ត្រា)";
   const sentAt = prev?.sent_at
-    ? new Date(prev.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short" })
+    ? new Date(prev.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Phnom_Penh" })
     : "មិនស្គាល់ពេលវេលា";
 
   await tg("sendMessage", {
@@ -420,7 +420,7 @@ async function handleDeletedBusinessMessages(payload: any) {
       continue;
     }
     const sentAt = o.sent_at
-      ? new Date(o.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short" })
+      ? new Date(o.sent_at).toLocaleString("km-KH", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Phnom_Penh" })
       : "មិនស្គាល់ពេលវេលា";
     const header = `🗑️ ពី៖ <b>${escapeHtml(o.from_name ?? "Unknown")}</b>\n🕒 ${sentAt}`;
     try {
