@@ -161,15 +161,35 @@ async function handleBusinessConnection(bc: any) {
   });
 }
 
-async function handleBusinessMessage(msg: any) {
+async function getConnection(bcId: string): Promise<{ user_id: number; user_chat_id: number } | null> {
   const supabase = getSupabase();
-  const bcId: string = msg.business_connection_id;
-
-  const { data: conn } = await supabase
+  const { data } = await supabase
     .from("business_connections")
     .select("user_id, user_chat_id")
     .eq("id", bcId)
     .maybeSingle();
+  if (data?.user_chat_id) return data as any;
+  const info = await tg("getBusinessConnection", { business_connection_id: bcId });
+  const bc = info?.result;
+  if (!bc?.user_chat_id) return null;
+  await supabase.from("business_connections").upsert({
+    id: bc.id ?? bcId,
+    user_id: bc.user.id,
+    user_chat_id: bc.user_chat_id,
+    username: bc.user.username ?? null,
+    first_name: bc.user.first_name ?? null,
+    can_reply: bc.can_reply ?? bc.rights?.can_reply ?? false,
+    is_enabled: bc.is_enabled ?? true,
+    updated_at: new Date().toISOString(),
+  });
+  return { user_id: bc.user.id, user_chat_id: bc.user_chat_id };
+}
+
+async function handleBusinessMessage(msg: any) {
+  const supabase = getSupabase();
+  const bcId: string = msg.business_connection_id;
+
+  const conn = await getConnection(bcId);
 
   const isOutgoing = conn?.user_id ? Number(msg.from?.id) === Number(conn.user_id) : false;
   const text = extractText(msg);
@@ -237,11 +257,7 @@ async function handleEditedBusinessMessage(msg: any) {
 
   if (!shouldNotify) return;
 
-  const { data: conn } = await supabase
-    .from("business_connections")
-    .select("user_chat_id")
-    .eq("id", bcId)
-    .maybeSingle();
+  const conn = await getConnection(bcId);
   if (!conn?.user_chat_id) return;
 
   const who = prev?.from_name ?? formatName(msg.from);
@@ -387,11 +403,7 @@ async function handleDeletedBusinessMessages(payload: any) {
     .in("message_id", freshIds.length ? freshIds : [-1])
     .is("deleted_at", null);
 
-  const { data: conn } = await supabase
-    .from("business_connections")
-    .select("user_chat_id")
-    .eq("id", bcId)
-    .maybeSingle();
+  const conn = await getConnection(bcId);
   if (!conn?.user_chat_id) return;
 
   const notifyIds = [...freshIds, ...unknownIds];
