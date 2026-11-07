@@ -13,13 +13,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const botUsername = "Deleted_Massage_2026Bot";
+  const botUsername = "limsovannradybot";
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-6 py-16">
       <div className="mx-auto max-w-2xl">
         <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          Webhook active
+          Telegram Business Bot Setup
         </div>
         <h1 className="mt-6 text-4xl font-bold tracking-tight text-slate-900">
           Telegram Secretary Bot
@@ -36,7 +36,7 @@ function Index() {
               <em>Business</em> → <em>Chatbots</em>
             </li>
             <li>
-              <span className="font-semibold text-slate-900">2.</span> បញ្ចូលឈ្មោះ bot៖{" "}
+              <span className="font-semibold text-slate-900">2.</span> ជ្រើសរើស Bot៖{" "}
               <a
                 href={`https://t.me/${botUsername}`}
                 className="rounded bg-slate-100 px-2 py-0.5 font-mono text-blue-600 hover:underline"
