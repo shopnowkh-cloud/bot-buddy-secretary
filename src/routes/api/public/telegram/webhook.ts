@@ -19,7 +19,7 @@ async function secretToken(): Promise<string> {
   const data = new TextEncoder().encode(`telegram-webhook:${bindings.BOT_TOKEN}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+    .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -154,7 +154,7 @@ async function editMessage(msg: any) {
   const shouldNotify = !!old &&
     old.edited_at !== editTimestamp &&
     old.text !== nextText &&
-    (!/^\\[(photo|video|animation|voice|audio|video note|document|sticker|location|contact|non-text message)\\]$/.test(String(old.text ?? "")) || hasActualText);
+    (!/^\[(photo|video|animation|voice|audio|video note|document|sticker|location|contact|non-text message)\]$/.test(String(old.text ?? "")) || hasActualText);
 
   await bindings.DB.prepare(`INSERT INTO business_messages
     (business_connection_id,chat_id,message_id,from_user_id,from_name,text,raw_json,sent_at,edited_at)
