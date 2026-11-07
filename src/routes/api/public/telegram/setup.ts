@@ -8,7 +8,7 @@ async function configureWebhook() {
   const bytes = new TextEncoder().encode(`telegram-webhook:${token}`);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const secret = btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+    .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 
   const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
     method: "POST",
