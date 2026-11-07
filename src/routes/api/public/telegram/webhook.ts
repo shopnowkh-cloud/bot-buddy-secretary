@@ -173,13 +173,16 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!bindings.BOT_TOKEN || !bindings.DB) return new Response("Missing BOT_TOKEN or DB binding", { status: 500 });
+        if (!bindings.BOT_TOKEN) return new Response("Missing BOT_TOKEN binding", { status: 500 });
         const expected = await secretToken();
         const received = request.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
         if (received !== expected) return new Response("Unauthorized", { status: 401 });
         let update: any;
         try { update = await request.json(); } catch { return new Response("Bad Request", { status: 400 }); }
         try {
+          if ((update.business_connection || update.business_message || update.edited_business_message || update.deleted_business_messages) && !bindings.DB) {
+            return new Response("Missing DB binding", { status: 500 });
+          }
           await handleUpdate(update);
           return Response.json({ ok: true });
         } catch (error) {
